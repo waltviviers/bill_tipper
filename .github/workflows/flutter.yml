@@ -7,6 +7,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
@@ -16,18 +17,18 @@ jobs:
           flutter-version: '3.24.3'
           channel: 'stable'
 
-      # Create a fresh Flutter app structure in CI
+      # Create a fresh Flutter project structure in CI
       - name: Create Flutter project
         run: flutter create -t app app
 
-      # Copy your source into the generated project
+      # Copy your app source into the generated project
       - name: Copy source files
         run: |
           rm -rf app/lib/*
           cp -r lib/* app/lib/
           cp pubspec.yaml app/
 
-      # Bump Android SDK to 35 (needed by ML Kit & some plugins)
+      # Bump Android SDK to 35 for ML Kit compatibility
       - name: Set Android SDK to 35
         run: |
           grep -q '^flutter.compileSdkVersion=' app/android/gradle.properties || echo 'flutter.compileSdkVersion=35' >> app/android/gradle.properties
@@ -40,7 +41,7 @@ jobs:
           cd app
           flutter pub get
 
-      # Build a DEBUG apk (no shrinking/obfuscation/signing hassles)
+      # Build a DEBUG APK (no shrinking, easier to get working fast)
       - name: Build debug APK
         run: |
           cd app
