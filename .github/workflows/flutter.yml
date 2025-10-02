@@ -4,72 +4,52 @@ on:
   push:
     branches: [ main ]
   pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          # Pin to a stable Flutter to avoid resolver hiccups
-          flutter-version: '3.24.3'
-          channel: 'stable'
-          cache: true
+          flutter-version: "3.24.3"
+          channel: "stable"
+          architecture: x64
 
       - name: Flutter doctor (diagnostics)
         run: flutter doctor -v
 
-      # Make sure the project compiles against Android SDK 35.
-      # If compileSdk isn't present, insert it; if present, set it to 35.
-      - name: Ensure compileSdk 35 (Android)
-        run: |
-          if [ -f android/app/build.gradle ]; then
-            if ! grep -q "compileSdk" android/app/build.gradle; then
-              awk '1; /android \{/ && !done { print "    compileSdk = 35"; done=1 }' android/app/build.gradle > /tmp/build.gradle && mv /tmp/build.gradle android/app/build.gradle
-            else
-              sed -i -E 's/compileSdk(Version)? *= *[0-9]+/compileSdk = 35/' android/app/build.gradle
-            fi
-          fi
-
-      # Clean any deprecated flags that might break modern Gradle
-      - name: Clean gradle.properties flags
-        run: |
-          if [ -f android/gradle.properties ]; then
-            sed -i '/android.enableR8/d' android/gradle.properties || true
-          fi
-
       - name: Install dependencies
         run: flutter pub get
 
-      # Build a debug APK without code shrinking (keeps build simple and fast)
+      # 🔧 REGENERATE ANDROID PLATFORM FOLDER IF MISSING/CORRUPTED
+      # This will (re)create android/ without overwriting your lib/, assets/, or pubspec.yaml
+      - name: Ensure Android project exists
+        run: flutter create --platforms=android .
+
+      # Optional: show Gradle and Android config
+      - name: Print Android project files
+        run: ls -la android && cat android/gradle.properties || true
+
+      # Build a debug APK (no shrink avoids R8 rules while we iterate)
       - name: Build debug APK (no shrink)
         run: flutter build apk --debug --no-shrink
 
+      # Upload artifact so you can download the APK from the run page
       - name: Upload APK artifact
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: build/app/outputs/flutter-apk/app-debug.apk
-
-      - name: Upload build logs (on failure)
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-logs
-          path: |
-            **/build/**/outputs/logs/*
-            **/build/**/reports/*
-            android/gradle.properties
-            android/app/build.gradle
