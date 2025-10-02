@@ -19,16 +19,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Flutter
+      - name: Set up Flutter 3.24.3
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: stable
-          channel: stable
+          flutter-version: '3.24.3'   # <— pin exact version to avoid resolver issues
+          cache: true
 
       - name: Flutter doctor (diagnostics)
         run: flutter doctor -v
 
-      # If the Android scaffolding isn't in the repo yet, create it on the runner
       - name: Ensure Android project exists
         run: |
           if [ ! -d "android" ]; then
@@ -39,7 +38,6 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      # Bump compileSdk to 35 so ML Kit plugins are happy
       - name: Force compileSdk = 35
         run: |
           set -e
@@ -48,7 +46,6 @@ jobs:
             sed -i 's/compileSdk *=[^0-9]*/compileSdk = 35/' "$GRADLE_FILE" || true
             sed -i 's/compileSdkVersion *[0-9][0-9]*/compileSdkVersion 35/' "$GRADLE_FILE" || true
           fi
-          # Also ensure gradle.properties turns off shrinker in case release gets used
           echo "android.enableR8=false" >> android/gradle.properties
 
       - name: Build debug APK (no shrink)
@@ -63,7 +60,6 @@ jobs:
             **/outputs/**/*.apk
           if-no-files-found: error
 
-      # If something still fails, ship logs so we can see the exact error
       - name: Upload build logs (on failure)
         if: failure()
         uses: actions/upload-artifact@v4
