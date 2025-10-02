@@ -16,16 +16,26 @@ jobs:
           flutter-version: '3.24.3'
           channel: 'stable'
 
-      # Create a fresh Flutter app structure
+      # Create a fresh Flutter app structure in CI
       - name: Create Flutter project
         run: flutter create -t app app
 
-      # Copy your code into the new project
+      # Copy your source into the generated project
       - name: Copy source files
         run: |
           rm -rf app/lib/*
           cp -r lib/* app/lib/
           cp pubspec.yaml app/
+
+      # STEP 1: bump Android SDK versions to 35 in the generated project
+      - name: Set Android SDK to 35 in generated project
+        run: |
+          # Ensure properties exist; append if missing
+          grep -q '^flutter.compileSdkVersion=' app/android/gradle.properties || echo 'flutter.compileSdkVersion=35' >> app/android/gradle.properties
+          grep -q '^flutter.targetSdkVersion='  app/android/gradle.properties || echo 'flutter.targetSdkVersion=35'  >> app/android/gradle.properties
+          # And force them to 35 if present
+          sed -i 's/^flutter.compileSdkVersion=.*/flutter.compileSdkVersion=35/' app/android/gradle.properties
+          sed -i 's/^flutter.targetSdkVersion=.*/flutter.targetSdkVersion=35/'  app/android/gradle.properties
 
       - name: Install dependencies
         run: |
