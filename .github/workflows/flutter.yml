@@ -1,4 +1,4 @@
-name: Flutter CI
+name: Flutter CI (Debug APK)
 
 on:
   push:
@@ -27,8 +27,8 @@ jobs:
           cp -r lib/* app/lib/
           cp pubspec.yaml app/
 
-      # Ensure Android compiles/targets API 35
-      - name: Set Android SDK to 35 in generated project
+      # Bump Android SDK to 35 (needed by ML Kit & some plugins)
+      - name: Set Android SDK to 35
         run: |
           grep -q '^flutter.compileSdkVersion=' app/android/gradle.properties || echo 'flutter.compileSdkVersion=35' >> app/android/gradle.properties
           grep -q '^flutter.targetSdkVersion='  app/android/gradle.properties || echo 'flutter.targetSdkVersion=35'  >> app/android/gradle.properties
@@ -40,16 +40,14 @@ jobs:
           cd app
           flutter pub get
 
-      # Build with shrinker disabled so ML Kit classes aren't stripped
-      - name: Build release APK
+      # Build a DEBUG apk (no shrinking/obfuscation/signing hassles)
+      - name: Build debug APK
         run: |
           cd app
-          flutter build apk --release \
-            --no-shrink \
-            --no-tree-shake-icons
+          flutter build apk --debug
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: app/build/app/outputs/flutter-apk/app-release.apk
+          name: app-debug
+          path: app/build/app/outputs/flutter-apk/app-debug.apk
