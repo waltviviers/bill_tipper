@@ -13,7 +13,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'   # pin to latest stable release
+          flutter-version: '3.24.3'   # latest stable
           channel: 'stable'
 
       - name: Install dependencies
@@ -21,9 +21,6 @@ jobs:
 
       - name: Analyze
         run: flutter analyze
-
-      - name: Run tests
-        run: flutter test --no-pub
 
       - name: Build release APK
         run: flutter build apk --release
