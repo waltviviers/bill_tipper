@@ -1,24 +1,48 @@
-return MaterialApp(
-  title: 'Bill Tipper',
-  debugShowCheckedModeBanner: false,
+import 'package:flutter/material.dart';
 
-  // (optional) light theme — kept for completeness
-  theme: ThemeData(
-    colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
-    useMaterial3: true,
-  ),
+void main() {
+  runApp(const BillTipperApp());
+}
 
-  // Dark theme we’ll actually use
-  darkTheme: ThemeData(
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: Colors.teal,
-      brightness: Brightness.dark,
-    ),
-    useMaterial3: true,
-  ),
+class BillTipperApp extends StatelessWidget {
+  const BillTipperApp({super.key});
 
-  // Force dark mode
-  themeMode: ThemeMode.dark,
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Bill Tipper',
+      debugShowCheckedModeBanner: false,
+      theme: ThemeData.dark().copyWith(
+        primaryColor: Colors.black,
+        scaffoldBackgroundColor: Colors.black,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.black,
+          centerTitle: true,
+        ),
+      ),
+      home: const HomePage(),
+    );
+  }
+}
 
-  home: const BillHomePage(),
-);
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Image.asset(
+          'assets/bt_logo.png',
+          height: 40, // adjust to fit nicely
+        ),
+      ),
+      body: const Center(
+        child: Text(
+          'Welcome to Bill Tipper!',
+          style: TextStyle(fontSize: 20, color: Colors.white),
+        ),
+      ),
+    );
+  }
+}
