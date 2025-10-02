@@ -27,62 +27,26 @@ jobs:
           cp -r lib/* app/lib/
           cp pubspec.yaml app/
 
-      # STEP 1: bump Android SDK versions to 35 in the generated project
+      # Ensure Android compiles/targets API 35
       - name: Set Android SDK to 35 in generated project
         run: |
-          # Ensure properties exist; append if missing
           grep -q '^flutter.compileSdkVersion=' app/android/gradle.properties || echo 'flutter.compileSdkVersion=35' >> app/android/gradle.properties
           grep -q '^flutter.targetSdkVersion='  app/android/gradle.properties || echo 'flutter.targetSdkVersion=35'  >> app/android/gradle.properties
-          # And force them to 35 if present
           sed -i 's/^flutter.compileSdkVersion=.*/flutter.compileSdkVersion=35/' app/android/gradle.properties
           sed -i 's/^flutter.targetSdkVersion=.*/flutter.targetSdkVersion=35/'  app/android/gradle.properties
-
-      # STEP 2: disable code shrinking (R8/ProGuard) to avoid ML Kit class stripping
-      - name: Disable R8 shrinking in release build
-        run: |
-          APP_KTS="app/android/app/build.gradle.kts"
-          APP_GROOVY="app/android/app/build.gradle"
-
-          if [ -f "$APP_KTS" ]; then
-            # If flags exist, force them off; else append a release block that turns them off
-            sed -i 's/isMinifyEnabled = true/isMinifyEnabled = false/g' "$APP_KTS" || true
-            sed -i 's/isShrinkResources = true/isShrinkResources = false/g' "$APP_KTS" || true
-            cat >> "$APP_KTS" <<'EOF'
-
-android {
-  buildTypes {
-    release {
-      isMinifyEnabled = false
-      isShrinkResources = false
-    }
-  }
-}
-EOF
-          elif [ -f "$APP_GROOVY" ]; then
-            sed -i 's/minifyEnabled true/minifyEnabled false/g' "$APP_GROOVY" || true
-            sed -i 's/shrinkResources true/shrinkResources false/g' "$APP_GROOVY" || true
-            cat >> "$APP_GROOVY" <<'EOF'
-
-android {
-  buildTypes {
-    release {
-      minifyEnabled false
-      shrinkResources false
-    }
-  }
-}
-EOF
-          fi
 
       - name: Install dependencies
         run: |
           cd app
           flutter pub get
 
+      # Build with shrinker disabled (this is the key fix for your R8 errors)
       - name: Build release APK
         run: |
           cd app
-          flutter build apk --release
+          flutter build apk --release \
+            --no-shrink \
+            --no-tree-shake-icons
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
