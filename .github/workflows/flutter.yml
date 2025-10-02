@@ -13,20 +13,32 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'   # latest stable
+          flutter-version: '3.24.3'
           channel: 'stable'
 
-      - name: Install dependencies
-        run: flutter pub get
+      # Create a fresh Flutter app structure
+      - name: Create Flutter project
+        run: flutter create -t app app
 
-      - name: Analyze
-        run: flutter analyze
+      # Copy your code into the new project
+      - name: Copy source files
+        run: |
+          rm -rf app/lib/*
+          cp -r lib/* app/lib/
+          cp pubspec.yaml app/
+
+      - name: Install dependencies
+        run: |
+          cd app
+          flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: |
+          cd app
+          flutter build apk --release
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-release
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: app/build/app/outputs/flutter-apk/app-release.apk
