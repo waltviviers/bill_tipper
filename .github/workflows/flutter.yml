@@ -20,21 +20,22 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # >>> This action installs cmdline-tools, sdkmanager, platform 35, build-tools 35.0.0,
-      # >>> accepts licenses, and exports PATH/ANDROID_HOME for the rest of the job.
+      # Installs cmdline-tools + sdkmanager, platform API 35, build-tools 35.0.0,
+      # and exports ANDROID_HOME/PATH for the rest of the job.
       - name: Setup Android SDK (API 35)
         uses: android-actions/setup-android@v3
         with:
           api-level: 35
-          cmake: false
-          ndk: false
           components: "build-tools;35.0.0"
-          accept-android-sdk-licenses: true
+
+      # Some runners still require an explicit license accept step.
+      - name: Accept Android licenses
+        run: yes | sdkmanager --licenses
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.3"  # match your Flutter toolchain
+          flutter-version: "3.24.3"  # match your local Flutter
 
       - name: Flutter pub get
         run: flutter pub get
