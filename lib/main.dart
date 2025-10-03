@@ -1,234 +1,268 @@
-import 'package:flutter/material.dart';
-import 'dart:math';
-import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 
-void main() {
-  runApp(BillTipperApp());
-}
+void main() => runApp(const BillTipperApp());
 
 class BillTipperApp extends StatelessWidget {
+  const BillTipperApp({super.key});
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Bill Tipper',
-      theme: ThemeData.dark().copyWith(
-        primaryColor: Colors.teal,
-        scaffoldBackgroundColor: Color(0xFF121212),
-        colorScheme: ColorScheme.dark(
-          primary: Colors.teal,
-          secondary: Colors.tealAccent,
-        ),
-      ),
-      home: BillSplitter(),
+      theme: ThemeData.dark(),
+      home: const BillTipperHome(),
     );
   }
 }
 
-class BillSplitter extends StatefulWidget {
+class BillTipperHome extends StatefulWidget {
+  const BillTipperHome({super.key});
+
   @override
-  _BillSplitterState createState() => _BillSplitterState();
+  State<BillTipperHome> createState() => _BillTipperHomeState();
 }
 
-class _BillSplitterState extends State<BillSplitter> {
-  final TextEditingController _billController = TextEditingController();
-  double _tipPercentage = 0.10; // Default 10%
-  int _splitCount = 1;
-  double _billAmount = 0.0;
+class _BillTipperHomeState extends State<BillTipperHome> {
+  final _billController = TextEditingController();
+  final _picker = ImagePicker();
+  File? _lastPhoto;
 
-  final ImagePicker _picker = ImagePicker();
-  XFile? _billImage;
+  double _tipPercent = 10; // default 10%
+  bool _roundToR5 = true; // default enabled
+  double _totalWithTip = 0;
 
-  void _calculateBill() {
-    setState(() {
-      _billAmount = double.tryParse(_billController.text) ?? 0.0;
-    });
+  @override
+  void dispose() {
+    _billController.dispose();
+    super.dispose();
   }
 
-  // Rounds number UP to nearest 5
-  double _roundUpToNearestFive(double value) {
-    return (value % 5 == 0) ? value : (5 * ((value / 5).ceil()));
+  double _parseBill() =>
+      double.tryParse(_billController.text.replaceAll(',', '.')) ?? 0.0;
+
+  double _computeTotal(double bill, double percent) =>
+      bill + bill * (percent / 100.0);
+
+  double _roundUpToNearest5(double value) {
+    if (!_roundToR5) return value;
+    final remainder = value % 5;
+    return remainder == 0 ? value : (value + (5 - remainder));
   }
 
-  Future<void> _takePhoto() async {
-    final XFile? photo = await _picker.pickImage(source: ImageSource.camera);
-    setState(() {
-      _billImage = photo;
-    });
+  void _recalculate() {
+    final bill = _parseBill();
+    final total = _computeTotal(bill, _tipPercent);
+    _totalWithTip = _roundUpToNearest5(total);
+    setState(() {});
+  }
+
+  Future<void> _scanBillWithCamera() async {
+    final XFile? shot =
+        await _picker.pickImage(source: ImageSource.camera, imageQuality: 90);
+    if (shot == null) return;
+
+    _lastPhoto = File(shot.path);
+    final inputImage = InputImage.fromFile(_lastPhoto!);
+    final recognizer = TextRecognizer(script: TextRecognitionScript.latin);
+
+    try {
+      final result = await recognizer.processImage(inputImage);
+      final text = result.text;
+
+      final regex = RegExp(r'(?<!\d)(\d{1,3}(?:[ .,\u00A0]\d{3})*|\d+)(?:[.,]\d{2})?');
+      double? best;
+
+      for (final m in regex.allMatches(text)) {
+        var normalized = m.group(0)!;
+        normalized = normalized.replaceAll(RegExp(r'[ \u00A0]'), '');
+        if (RegExp(r',\d{2}$').hasMatch(normalized) &&
+            normalized.contains(',')) {
+          normalized = normalized.replaceAll('.', '');
+          normalized = normalized.replaceAll(',', '.');
+        } else {
+          normalized = normalized.replaceAll(',', '');
+        }
+
+        final v = double.tryParse(normalized);
+        if (v != null) {
+          if (best == null || v > best) best = v;
+        }
+      }
+
+      if (best != null) {
+        _billController.text = best!.toStringAsFixed(2);
+        _recalculate();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Scanned amount: ${best!.toStringAsFixed(2)}')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Couldn’t detect a total. Try again.')),
+          );
+        }
+      }
+    } finally {
+      recognizer.close();
+      setState(() {});
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    double tipAmount = _billAmount * _tipPercentage;
-    double total = _billAmount + tipAmount;
-    double roundedTotal = _roundUpToNearestFive(total);
-    double perPerson = roundedTotal / _splitCount;
+    final bill = _parseBill();
+    final tipValue = bill * (_tipPercent / 100.0);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Bill Tipper'),
+        title: const Text('Bill Tipper'),
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Logo row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              Text('Bill ', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
+              RotatedBox(quarterTurns: 1, child: Icon(Icons.person, size: 28)),
+              Text(' Tipper', style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700)),
+            ],
+          ),
+
+          const SizedBox(height: 12),
+
+          // Total owed right under logo
+          Center(
+            child: Text(
+              _formatCurrency(_totalWithTip),
+              style: const TextStyle(
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
+                color: Colors.greenAccent,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Scan button + preview
+          Row(
             children: [
-              // Logo
-              Image.asset(
-                'assets/images/bt_logo.png',
-                height: 120, // made bigger
-              ),
-              SizedBox(height: 16),
-
-              // Highlighted rounded total under logo
-              Container(
-                padding: EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.teal,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  'Final Total: ${roundedTotal.toStringAsFixed(2)}',
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-              SizedBox(height: 20),
-
-              // Bill input
-              TextField(
-                controller: _billController,
-                decoration: InputDecoration(
-                  labelText: 'Bill total',
-                  border: OutlineInputBorder(),
-                ),
-                keyboardType: TextInputType.number,
-                onChanged: (value) => _calculateBill(),
-              ),
-              SizedBox(height: 20),
-
-              // Tip percentage
-              Text('Tip %'),
-              Wrap(
-                spacing: 10,
-                children: [10, 12, 15, 18, 20].map((percent) {
-                  return ChoiceChip(
-                    label: Text('$percent%'),
-                    selected: _tipPercentage == percent / 100,
-                    onSelected: (_) {
-                      setState(() {
-                        _tipPercentage = percent / 100;
-                      });
-                    },
-                  );
-                }).toList(),
-              ),
-              SizedBox(height: 20),
-
-              // Split
-              Text('Split'),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  IconButton(
-                    icon: Icon(Icons.remove),
-                    onPressed: () {
-                      setState(() {
-                        if (_splitCount > 1) _splitCount--;
-                      });
-                    },
-                  ),
-                  Text('$_splitCount'),
-                  IconButton(
-                    icon: Icon(Icons.add),
-                    onPressed: () {
-                      setState(() {
-                        _splitCount++;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              SizedBox(height: 20),
-
-              // Results
-              Text('Results'),
-              Card(
-                child: ListTile(
-                  title: Text('Bill'),
-                  trailing: Text('${_billAmount.toStringAsFixed(2)}'),
-                ),
-              ),
-              Card(
-                child: ListTile(
-                  title: Text('Tip (${(_tipPercentage * 100).toInt()}%)'),
-                  trailing: Text('${tipAmount.toStringAsFixed(2)}'),
-                ),
-              ),
-              Card(
-                child: ListTile(
-                  title: Text('Non-Rounded Total'),
-                  trailing: Text('${total.toStringAsFixed(2)}'),
-                ),
-              ),
-              Card(
-                color: Colors.teal.withOpacity(0.2),
-                child: ListTile(
-                  title: Text(
-                    'Rounded Total',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                  trailing: Text(
-                    '${roundedTotal.toStringAsFixed(2)}',
-                    style: TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.tealAccent),
-                  ),
-                ),
-              ),
-              Card(
-                child: ListTile(
-                  title: Text('Per Person'),
-                  trailing: Text('${perPerson.toStringAsFixed(2)}'),
-                ),
-              ),
-              SizedBox(height: 20),
-
-              // Camera button
               ElevatedButton.icon(
-                onPressed: _takePhoto,
-                icon: Icon(Icons.camera_alt),
-                label: Text('Take Photo of Bill'),
+                onPressed: _scanBillWithCamera,
+                icon: const Icon(Icons.photo_camera),
+                label: const Text('Scan bill'),
               ),
-              if (_billImage != null)
-                Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: Image.file(
-                    File(_billImage!.path),
-                    height: 200,
+              const SizedBox(width: 12),
+              if (_lastPhoto != null)
+                SizedBox(
+                  width: 64,
+                  height: 64,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(_lastPhoto!, fit: BoxFit.cover),
                   ),
                 ),
-              SizedBox(height: 20),
+            ],
+          ),
 
-              // Reset button
-              ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _billController.clear();
-                    _billAmount = 0.0;
-                    _tipPercentage = 0.10; // reset to 10%
-                    _splitCount = 1;
-                    _billImage = null;
-                  });
-                },
-                child: Text('Reset'),
+          const SizedBox(height: 20),
+
+          // Manual bill entry
+          TextField(
+            controller: _billController,
+            keyboardType:
+                const TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              labelText: 'Bill amount (optional)',
+              hintText: 'e.g. 249.90',
+              border: OutlineInputBorder(),
+            ),
+            onChanged: (_) => _recalculate(),
+          ),
+
+          const SizedBox(height: 20),
+
+          // Tip slider
+          Row(
+            children: [
+              const Text('Tip %'),
+              Expanded(
+                child: Slider(
+                  min: 0,
+                  max: 30,
+                  divisions: 30,
+                  value: _tipPercent,
+                  label: '${_tipPercent.toStringAsFixed(0)}%',
+                  onChanged: (v) {
+                    setState(() => _tipPercent = v);
+                    _recalculate();
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 48,
+                child: Text('${_tipPercent.toStringAsFixed(0)}%'),
               ),
             ],
           ),
-        ),
+
+          // Round to 5 toggle
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Round up to nearest R5'),
+            value: _roundToR5,
+            onChanged: (v) {
+              setState(() => _roundToR5 = v);
+              _recalculate();
+            },
+          ),
+
+          const Divider(),
+          _MoneyRow(label: 'Bill', value: bill),
+          _MoneyRow(label: 'Tip', value: tipValue),
+        ],
+      ),
+    );
+  }
+
+  String _formatCurrency(double v) {
+    return v.isNaN || v.isInfinite ? '0.00' : v.toStringAsFixed(2);
+  }
+}
+
+class _MoneyRow extends StatelessWidget {
+  final String label;
+  final double value;
+  final bool emphasize;
+  const _MoneyRow({
+    required this.label,
+    required this.value,
+    this.emphasize = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final style = emphasize
+        ? const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)
+        : const TextStyle(fontSize: 18, fontWeight: FontWeight.w600);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text(label)),
+          Text(
+            value.toStringAsFixed(2),
+            style: style,
+          ),
+        ],
       ),
     );
   }
