@@ -17,27 +17,44 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3'   # adjust to your Flutter version
+          flutter-version: '3.24.3'   # match your Flutter SDK version
 
-      - name: Install Java
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Install Android SDK CLI tools
+        run: |
+          sudo mkdir -p /usr/local/lib/android/sdk
+          cd /usr/local/lib/android
+          sudo wget https://dl.google.com/android/repository/commandlinetools-linux-10406996_latest.zip -O cmdline-tools.zip
+          sudo unzip cmdline-tools.zip -d sdk
+          sudo mkdir -p sdk/cmdline-tools/latest
+          sudo mv sdk/cmdline-tools/* sdk/cmdline-tools/latest/
+          echo "ANDROID_HOME=/usr/local/lib/android/sdk" >> $GITHUB_ENV
+          echo "PATH=$PATH:/usr/local/lib/android/sdk/cmdline-tools/latest/bin:/usr/local/lib/android/sdk/platform-tools" >> $GITHUB_ENV
+
       - name: Install Android SDK 35
         run: |
-          yes | sdkmanager --licenses
-          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          sdkmanager --sdk_root=/usr/local/lib/android/sdk "platforms;android-35" "build-tools;35.0.0"
+          yes | sdkmanager --licenses --sdk_root=/usr/local/lib/android/sdk
 
-      - name: Get dependencies
+      - name: Flutter Pub Get
         run: flutter pub get
 
       - name: Analyze
         run: flutter analyze
 
-      - name: Run tests
+      - name: Run Tests
         run: flutter test
 
       - name: Build APK
         run: flutter build apk --debug --no-shrink
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BillTipper-debug-apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
