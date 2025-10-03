@@ -20,7 +20,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      # Android SDK + build-tools 35 installed and on PATH
       - name: Setup Android SDK (API 35)
         uses: android-actions/setup-android@v3
         with:
@@ -41,18 +40,31 @@ jobs:
       - name: Flutter pub get
         run: flutter pub get
 
-      # Analyzer errors shouldn't fail CI right now
+      # Don’t block the build on lints while we’re stabilizing CI
       - name: Analyze (non-blocking)
         run: flutter analyze || echo "Analyzer warnings ignored for CI"
 
       - name: Test (non-blocking)
-        run: flutter test || echo "Tests skipped/failed; continuing for build"
+        run: flutter test || echo "Tests failed/none; continuing to build"
 
       - name: Build debug APK
         run: flutter build apk --debug --no-shrink
 
+      # NEW: Show what files were produced so we know the exact APK name/path
+      - name: List build outputs
+        run: |
+          echo "== APKs found =="
+          find build/app/outputs -maxdepth 3 -type f -name "*.apk" -print || true
+          echo "== Bundles found =="
+          find build/app/outputs -maxdepth 4 -type f -name "*.aab" -print || true
+
+      # Robust upload: match any debug APK variant (handles split-per-abi, AGP changes, etc.)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: |
+            build/app/outputs/flutter-apk/*debug*.apk
+            build/app/outputs/apk/debug/*.apk
+            build/app/outputs/**/debug/*.apk
+          if-no-files-found: warn
