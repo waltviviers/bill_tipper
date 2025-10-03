@@ -34,13 +34,30 @@ jobs:
         with:
           flutter-version: "3.24.3"
 
-      - name: Flutter doctor (debug info)
+      - name: Flutter doctor
         run: flutter doctor -v
 
-      - name: Flutter pub get
+      - name: Install dependencies
         run: flutter pub get
 
-      # Don’t block the build on lints while we’re stabilizing CI
+      # --- The magic: regenerate a fresh, supported Android Gradle project ---
+      - name: Regenerate Android wrapper (safe)
+        run: |
+          # Recreate Android folder using current Flutter template (keeps lib/ & pubspec)
+          flutter create --platforms=android .
+
+          # Force compile/target SDK 35 in app/build.gradle
+          sed -i 's/compileSdk *= *[0-9][0-9]/compileSdk = 35/' android/app/build.gradle || true
+          sed -i 's/targetSdk *= *[0-9][0-9]/targetSdk = 35/' android/app/build.gradle || true
+
+          # Ensure CAMERA permission exists in manifest
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
+            # Insert uses-permission right after opening <manifest ...> line
+            awk 'NR==1{print; print "    <uses-permission android:name=\"android.permission.CAMERA\" />"; next}1' "$MANIFEST" > tmp.xml && mv tmp.xml "$MANIFEST"
+          fi
+
+      # Don’t fail CI on lints while stabilizing
       - name: Analyze (non-blocking)
         run: flutter analyze || echo "Analyzer warnings ignored for CI"
 
@@ -50,15 +67,10 @@ jobs:
       - name: Build debug APK
         run: flutter build apk --debug --no-shrink
 
-      # NEW: Show what files were produced so we know the exact APK name/path
       - name: List build outputs
         run: |
-          echo "== APKs found =="
-          find build/app/outputs -maxdepth 3 -type f -name "*.apk" -print || true
-          echo "== Bundles found =="
-          find build/app/outputs -maxdepth 4 -type f -name "*.aab" -print || true
+          echo "== APKs found ==" && find build/app/outputs -type f -name "*.apk" -print || true
 
-      # Robust upload: match any debug APK variant (handles split-per-abi, AGP changes, etc.)
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -67,4 +79,4 @@ jobs:
             build/app/outputs/flutter-apk/*debug*.apk
             build/app/outputs/apk/debug/*.apk
             build/app/outputs/**/debug/*.apk
-          if-no-files-found: warn
+          if-no-files-found: error
