@@ -1,76 +1,43 @@
-name: Flutter CI (Debug APK)
+name: Flutter CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ main ]
+    branches: [ "main" ]
 
 jobs:
-  build-android-debug:
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: "3.24.3"
-          channel: "stable"
-          architecture: x64
+          flutter-version: '3.24.3'   # adjust to your Flutter version
 
-      - name: Flutter doctor (diagnostics)
-        run: flutter doctor -v
+      - name: Install Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
 
-      - name: Install dependencies
+      - name: Install Android SDK 35
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Get dependencies
         run: flutter pub get
 
-      # === Generate android/ on-the-fly so you don't need local Flutter ===
-      - name: Create platform folders if missing
-        run: |
-          if [ ! -d android ]; then
-            flutter create .
-          fi
+      - name: Analyze
+        run: flutter analyze
 
-      # === Patch Android for build success ===
-      - name: Bump compileSdk to 35
-        run: |
-          if grep -q "compileSdk" android/app/build.gradle; then
-            sed -i 's/compileSdk *= *[^0-9]*[0-9]\+/compileSdk = 35/' android/app/build.gradle
-          else
-            # Older templates: ensure it's inside the android { } block
-            sed -i '0,/android *{/{s/android *{/android {\n    compileSdk = 35/}' android/app/build.gradle
-          fi
+      - name: Run tests
+        run: flutter test
 
-      - name: Remove deprecated R8 flag if present
-        run: |
-          if [ -f android/gradle.properties ]; then
-            sed -i '/android.enableR8/d' android/gradle.properties || true
-          fi
-
-      - name: Add CAMERA permission to AndroidManifest
-        run: |
-          MANIFEST=android/app/src/main/AndroidManifest.xml
-          if [ -f "$MANIFEST" ]; then
-            # insert the permission right before <application>
-            sed -i '0,/<application/{s//<uses-permission android:name="android.permission.CAMERA"\/>\n    <application/}' "$MANIFEST"
-          fi
-          echo "---- Manifest snippet ----"
-          sed -n '1,80p' "$MANIFEST" | sed -n '1,40p'
-
-      - name: Build debug APK (no shrink)
+      - name: Build APK
         run: flutter build apk --debug --no-shrink
-
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: bill_tipper-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
