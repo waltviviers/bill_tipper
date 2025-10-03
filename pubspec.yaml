@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.6
+  image_picker: ^1.1.1   # ← camera/photo capture
 
 dev_dependencies:
   flutter_test:
