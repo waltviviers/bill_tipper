@@ -42,54 +42,132 @@ jobs:
       - name: Pub get
         run: flutter pub get
 
-      # Regenerate Android wrapper each CI run so we always have a supported Gradle project
-      - name: Regenerate Android wrapper (safe)
+      # Always ensure a supported Android Gradle project exists
+      - name: Regenerate Android wrapper
+        run: flutter create --platforms=android .
+
+      # Patch Android config for CI (SDKs, Kotlin, AGP, repos, multidex, AndroidX)
+      - name: Patch Android build files
+        working-directory: android
+        shell: bash
         run: |
-          flutter create --platforms=android .
-          # Force SDK 35
-          sed -i 's/compileSdk *= *[0-9][0-9]/compileSdk = 35/' android/app/build.gradle || true
-          sed -i 's/targetSdk *= *[0-9][0-9]/targetSdk = 35/' android/app/build.gradle || true
-          # Ensure CAMERA permission
-          MANIFEST="android/app/src/main/AndroidManifest.xml"
-          if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
-            awk 'NR==1{print; print "    <uses-permission android:name=\"android.permission.CAMERA\" />"; next}1' "$MANIFEST" > tmp.xml && mv tmp.xml "$MANIFEST"
+          set -euxo pipefail
+
+          # Ensure gradle.properties exists & enable AndroidX/Jetifier
+          cat >> gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvm.options=-Xmx2g
+          android.useAndroidX=true
+          android.enableJetifier=true
+          kotlin.code.style=official
+          EOF
+
+          # Top-level build.gradle: repositories + Kotlin plugin + AGP
+          cat > build.gradle <<'EOF'
+          buildscript {
+            repositories {
+              google()
+              mavenCentral()
+            }
+            dependencies {
+              // legacy block; modern plugin DSL below handles versions
+            }
+          }
+
+          plugins {
+            id 'com.android.application' version '8.6.1' apply false
+            id 'com.android.library' version '8.6.1' apply false
+            id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
+          }
+          EOF
+
+          # Settings.gradle: make sure repos are present
+          sed -i '1,/dependencyResolutionManagement/ s/dependencyResolutionManagement.*/dependencyResolutionManagement {\n  repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)\n  repositories { google(); mavenCentral() }\n}/' settings.gradle || true
+          if ! grep -q "repositories {" settings.gradle; then
+            cat >> settings.gradle <<'EOR'
+          dependencyResolutionManagement {
+            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+            repositories { google(); mavenCentral() }
+          }
+          EOR
           fi
 
-      # Make sure AGP/Gradle wrapper match Flutter 3.24.x expectations
-      - name: Align Gradle toolchain (AGP 8.6.x / Gradle 8.7)
-        working-directory: android
-        run: |
-          # Bump Android Gradle Plugin to 8.6.1 (template-compatible)
-          sed -i 's/com.android.tools.build:gradle:[0-9.]\+/com.android.tools.build:gradle:8.6.1/' build.gradle || true
-          # Bump Gradle wrapper to 8.7
+          # Gradle wrapper to 8.7
           ./gradlew wrapper --gradle-version 8.7 --distribution-type all
-          # Show versions
+
+          # app/build.gradle: SDKs, multidex, kotlin-android plugin
+          APP=app/build.gradle
+          sed -i 's/^plugins.*/plugins {\n    id "com.android.application"\n    id "org.jetbrains.kotlin.android"\n}/' "$APP"
+          sed -i 's/compileSdk *= *[0-9][0-9]/compileSdk = 35/' "$APP" || true
+          sed -i 's/targetSdk *= *[0-9][0-9]/targetSdk = 35/' "$APP" || true
+          sed -i 's/minSdk *= *[0-9][0-9]/minSdk = 21/' "$APP" || true
+
+          # If blocks not present, inject minimal android{} config
+          if ! grep -q "compileSdk" "$APP"; then
+            cat >> "$APP" <<'EOG'
+          android {
+            namespace "com.example.bill_tipper"
+            compileSdk = 35
+            defaultConfig {
+              applicationId "com.example.bill_tipper"
+              minSdk = 21
+              targetSdk = 35
+              versionCode 1
+              versionName "1.0"
+              multiDexEnabled true
+            }
+            buildTypes {
+              release {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+              }
+            }
+          }
+          EOG
+          else
+            # Ensure multidex flag in defaultConfig
+            awk '/defaultConfig *{/{flag=1} flag && /}/{flag=0} {print} flag && !seen && /targetSdk/ {print "    multiDexEnabled true"; seen=1}' "$APP" > tmp && mv tmp "$APP"
+          fi
+
+          # Ensure dependency for multidex & repos for module build.gradle
+          if ! grep -q 'dependencies' "$APP"; then
+            cat >> "$APP" <<'EOD'
+          dependencies {
+            implementation 'androidx.multidex:multidex:2.0.1'
+          }
+          EOD
+          else
+            grep -q 'androidx.multidex:multidex' "$APP" || sed -i '/dependencies *{/a\    implementation '\''androidx.multidex:multidex:2.0.1'\''' "$APP"
+          fi
+
+          # Manifest: camera permission
+          MAN=app/src/main/AndroidManifest.xml
+          if ! grep -q 'android.permission.CAMERA' "$MAN"; then
+            awk 'NR==1{print; print "    <uses-permission android:name=\"android.permission.CAMERA\" />"; next}1' "$MAN" > tmp && mv tmp "$MAN"
+          fi
+
+          # Show final toolchain versions for debugging
           ./gradlew --version
 
-      # Don’t block on analyzer/tests while stabilizing CI
+      # Keep CI moving while we stabilise
       - name: Analyze (non-blocking)
         run: flutter analyze || echo "Analyzer warnings ignored for CI"
 
       - name: Test (non-blocking)
         run: flutter test || echo "Tests failed/none; continuing to build"
 
-      # Verbose build to surface the exact failure
       - name: Build debug APK (verbose + stacktrace)
         run: |
           set -o pipefail
           flutter build apk --debug --no-shrink -v 2>&1 | tee build_log.txt || true
           echo "---- TAIL BUILD LOG ----"
           tail -n 200 build_log.txt
-          # Fail the job if APK is missing
           test -n "$(find build/app/outputs -type f -name '*debug*.apk' -print -quit)"
 
       - name: List build outputs
         if: always()
         run: |
-          echo "== APKs =="
-          find build/app/outputs -type f -name "*.apk" -print || true
-          echo "== Bundles =="
-          find build/app/outputs -type f -name "*.aab" -print || true
+          echo "== APKs ==" && find build/app/outputs -type f -name "*.apk" -print || true
+          echo "== Bundles ==" && find build/app/outputs -type f -name "*.aab" -print || true
 
       - name: Upload APK artifact
         if: always()
