@@ -34,44 +34,65 @@ jobs:
         with:
           flutter-version: "3.24.3"
 
-      - name: Flutter doctor
-        run: flutter doctor -v
+      - name: Doctor & versions
+        run: |
+          flutter --version
+          flutter doctor -v
 
-      - name: Install dependencies
+      - name: Pub get
         run: flutter pub get
 
-      # --- The magic: regenerate a fresh, supported Android Gradle project ---
+      # Regenerate Android wrapper each CI run so we always have a supported Gradle project
       - name: Regenerate Android wrapper (safe)
         run: |
-          # Recreate Android folder using current Flutter template (keeps lib/ & pubspec)
           flutter create --platforms=android .
-
-          # Force compile/target SDK 35 in app/build.gradle
+          # Force SDK 35
           sed -i 's/compileSdk *= *[0-9][0-9]/compileSdk = 35/' android/app/build.gradle || true
           sed -i 's/targetSdk *= *[0-9][0-9]/targetSdk = 35/' android/app/build.gradle || true
-
-          # Ensure CAMERA permission exists in manifest
+          # Ensure CAMERA permission
           MANIFEST="android/app/src/main/AndroidManifest.xml"
           if ! grep -q 'android.permission.CAMERA' "$MANIFEST"; then
-            # Insert uses-permission right after opening <manifest ...> line
             awk 'NR==1{print; print "    <uses-permission android:name=\"android.permission.CAMERA\" />"; next}1' "$MANIFEST" > tmp.xml && mv tmp.xml "$MANIFEST"
           fi
 
-      # Don’t fail CI on lints while stabilizing
+      # Make sure AGP/Gradle wrapper match Flutter 3.24.x expectations
+      - name: Align Gradle toolchain (AGP 8.6.x / Gradle 8.7)
+        working-directory: android
+        run: |
+          # Bump Android Gradle Plugin to 8.6.1 (template-compatible)
+          sed -i 's/com.android.tools.build:gradle:[0-9.]\+/com.android.tools.build:gradle:8.6.1/' build.gradle || true
+          # Bump Gradle wrapper to 8.7
+          ./gradlew wrapper --gradle-version 8.7 --distribution-type all
+          # Show versions
+          ./gradlew --version
+
+      # Don’t block on analyzer/tests while stabilizing CI
       - name: Analyze (non-blocking)
         run: flutter analyze || echo "Analyzer warnings ignored for CI"
 
       - name: Test (non-blocking)
         run: flutter test || echo "Tests failed/none; continuing to build"
 
-      - name: Build debug APK
-        run: flutter build apk --debug --no-shrink
+      # Verbose build to surface the exact failure
+      - name: Build debug APK (verbose + stacktrace)
+        run: |
+          set -o pipefail
+          flutter build apk --debug --no-shrink -v 2>&1 | tee build_log.txt || true
+          echo "---- TAIL BUILD LOG ----"
+          tail -n 200 build_log.txt
+          # Fail the job if APK is missing
+          test -n "$(find build/app/outputs -type f -name '*debug*.apk' -print -quit)"
 
       - name: List build outputs
+        if: always()
         run: |
-          echo "== APKs found ==" && find build/app/outputs -type f -name "*.apk" -print || true
+          echo "== APKs =="
+          find build/app/outputs -type f -name "*.apk" -print || true
+          echo "== Bundles =="
+          find build/app/outputs -type f -name "*.aab" -print || true
 
       - name: Upload APK artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-debug-apk
