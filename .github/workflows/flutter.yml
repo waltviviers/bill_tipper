@@ -23,11 +23,8 @@ jobs:
       - name: Setup Android SDK (API 35)
         uses: android-actions/setup-android@v3
         with:
-          api-level: 35
-          components: "build-tools;35.0.0"
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
+          accept-android-sdk-licenses: true
+          packages: "platforms;android-35 build-tools;35.0.0"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
