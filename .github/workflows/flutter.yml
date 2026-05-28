@@ -32,8 +32,11 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
-      - name: Accept SDK licenses
-        run: yes | flutter doctor --android-licenses || true
+      - name: Install Android SDK components
+        run: |
+          "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.0"
+          yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses
 
       - name: Analyze (non-blocking)
         run: flutter analyze || true
@@ -41,7 +44,7 @@ jobs:
       - name: Build debug APK
         run: flutter build apk --debug --no-shrink
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-debug-apk
