@@ -93,11 +93,11 @@ class _BillTipperHomeState extends State<BillTipperHome> {
       }
 
       if (best != null) {
-        _billController.text = best!.toStringAsFixed(2);
+        _billController.text = best.toStringAsFixed(2);
         _recalculate();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Scanned amount: ${best!.toStringAsFixed(2)}')),
+            SnackBar(content: Text('Scanned amount: R${best.toStringAsFixed(2)}')),
           );
         }
       } else {
@@ -234,7 +234,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
   }
 
   String _formatCurrency(double v) {
-    return v.isNaN || v.isInfinite ? '0.00' : v.toStringAsFixed(2);
+    return v.isNaN || v.isInfinite ? 'R0.00' : 'R${v.toStringAsFixed(2)}';
   }
 }
 
@@ -259,7 +259,7 @@ class _MoneyRow extends StatelessWidget {
         children: [
           Expanded(child: Text(label)),
           Text(
-            value.toStringAsFixed(2),
+            'R${value.toStringAsFixed(2)}',
             style: style,
           ),
         ],
