@@ -209,7 +209,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
             // Logo header
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Image.asset('assets/bt_logo.png', height: 52, fit: BoxFit.contain),
+              child: Image.asset('assets/bt_logo.png', height: 120, fit: BoxFit.contain),
             ),
 
             const SizedBox(height: 20),
@@ -240,6 +240,11 @@ class _BillTipperHomeState extends State<BillTipperHome> {
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF69F0AE),
                       height: 1,
+                      shadows: [
+                        Shadow(color: Color(0xFF69F0AE), blurRadius: 24),
+                        Shadow(color: Color(0xFF69F0AE), blurRadius: 48),
+                        Shadow(color: Color(0x8069F0AE), blurRadius: 80),
+                      ],
                     ),
                   ),
                   if (_splitCount > 1) ...[
