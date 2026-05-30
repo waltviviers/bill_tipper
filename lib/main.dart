@@ -209,7 +209,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
             // Logo header
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Image.asset('assets/bt_logo.png', height: 80, fit: BoxFit.contain),
+              child: Image.asset('assets/bt_logo.png', height: 120, fit: BoxFit.contain),
             ),
 
             const SizedBox(height: 20),
