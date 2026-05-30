@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 void main() => runApp(const BillTipperApp());
 
@@ -377,6 +379,29 @@ class _BillTipperHomeState extends State<BillTipperHome> {
 
             _MoneyRow(label: 'Bill', value: bill),
             _MoneyRow(label: 'Tip (${_tipPercent.toStringAsFixed(0)}%)', value: tipValue),
+
+            const SizedBox(height: 24),
+
+            // Footer
+            GestureDetector(
+              onTap: () => launchUrl(
+                Uri.parse('https://www.instagram.com/waltviviers/'),
+                mode: LaunchMode.externalApplication,
+              ),
+              child: const Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  FaIcon(FontAwesomeIcons.instagram, size: 11, color: Colors.white24),
+                  SizedBox(width: 5),
+                  Text(
+                    'created by @waltviviers',
+                    style: TextStyle(color: Colors.white24, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 8),
           ],
         ),
       ),
