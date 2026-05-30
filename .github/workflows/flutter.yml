@@ -32,6 +32,9 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
+      - name: Generate app icons
+        run: dart run flutter_launcher_icons
+
       - name: Install Android SDK components
         run: |
           "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
