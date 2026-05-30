@@ -391,11 +391,11 @@ class _BillTipperHomeState extends State<BillTipperHome> {
               child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  FaIcon(FontAwesomeIcons.instagram, size: 11, color: Colors.white24),
+                  FaIcon(FontAwesomeIcons.instagram, size: 11, color: Colors.white54),
                   SizedBox(width: 5),
                   Text(
                     'created by @waltviviers',
-                    style: TextStyle(color: Colors.white24, fontSize: 11),
+                    style: TextStyle(color: Colors.white54, fontSize: 11),
                   ),
                 ],
               ),
