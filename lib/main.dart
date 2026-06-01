@@ -21,7 +21,7 @@ class _BillTipperAppState extends State<BillTipperApp> {
     final isDark = b == Brightness.dark;
     final base = isDark ? ThemeData.dark() : ThemeData.light();
     return base.copyWith(
-      scaffoldBackgroundColor: isDark ? Colors.black : Colors.white,
+      scaffoldBackgroundColor: isDark ? const Color(0xFF0D0D0D) : Colors.white,
       colorScheme: base.colorScheme.copyWith(
         primary: _accent,
         secondary: _accent,
