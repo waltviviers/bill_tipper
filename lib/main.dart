@@ -68,7 +68,7 @@ class _BillTipperAppState extends State<BillTipperApp> {
         fillColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
         labelStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
         prefixStyle: TextStyle(
-            color: isDark ? Colors.white70 : Colors.black70, fontSize: 16),
+            color: isDark ? Colors.white70 : Colors.black87, fontSize: 16),
         hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
       ),
       iconTheme: IconThemeData(color: isDark ? Colors.white70 : Colors.black54),
