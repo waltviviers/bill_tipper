@@ -262,8 +262,18 @@ class _BillTipperHomeState extends State<BillTipperHome> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    color: Colors.black,
-                    child: Image.asset('assets/bt_logo.png', height: 96, fit: BoxFit.contain),
+                    color: isDark ? const Color(0xFF0D0D0D) : Colors.white,
+                    child: isDark
+                        ? Image.asset('assets/bt_logo.png', height: 96, fit: BoxFit.contain)
+                        : ColorFiltered(
+                            colorFilter: const ColorFilter.matrix([
+                              -1, 0, 0, 0, 255,
+                               0,-1, 0, 0, 255,
+                               0, 0,-1, 0, 255,
+                               0, 0, 0, 1, 0,
+                            ]),
+                            child: Image.asset('assets/bt_logo.png', height: 96, fit: BoxFit.contain),
+                          ),
                   ),
                   Positioned(
                     right: 0,
