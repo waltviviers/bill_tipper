@@ -32,6 +32,11 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
+      - name: Set app display name
+        run: |
+          echo '<resources><string name="app_name">Bill Tipper</string></resources>' \
+            > android/app/src/main/res/values/strings.xml
+
       - name: Generate app icons
         run: dart run flutter_launcher_icons
 
