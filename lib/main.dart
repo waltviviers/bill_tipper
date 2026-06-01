@@ -17,7 +17,7 @@ class BillTipperApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: const Color(0xFF0D0D0D),
+        scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme.dark(
           primary: Color(0xFF69F0AE),
           surface: Color(0xFF1A1A1A),
@@ -100,13 +100,15 @@ class _BillTipperHomeState extends State<BillTipperHome> {
 
   double get _totalWithTip {
     final bill = _parseBill();
-    final withTip = bill + bill * (_tipPercent / 100.0);
-    if (!_roundToR5) return withTip;
-    final remainder = withTip % 5;
-    return remainder == 0 ? withTip : withTip + (5 - remainder);
+    return bill + bill * (_tipPercent / 100.0);
   }
 
-  double get _perPerson => _totalWithTip / _splitCount;
+  double get _perPerson {
+    final share = _totalWithTip / _splitCount;
+    if (!_roundToR5) return share;
+    final remainder = share % 5;
+    return remainder == 0 ? share : share + (5 - remainder);
+  }
 
   Future<void> _scanBillWithCamera() async {
     final XFile? shot =
