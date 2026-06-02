@@ -18,7 +18,7 @@ class _BillTipperAppState extends State<BillTipperApp> {
 
   ThemeData _makeTheme() {
     return ThemeData.dark().copyWith(
-      scaffoldBackgroundColor: const Color(0xFF0D0D0D),
+      scaffoldBackgroundColor: const Color(0xFF131313),
       colorScheme: ThemeData.dark().colorScheme.copyWith(
         primary: _accent,
         secondary: _accent,
@@ -242,7 +242,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    color: const Color(0xFF0D0D0D),
+                    color: const Color(0xFF131313),
                     child: Image.asset('assets/bt_logo.png', height: 96, fit: BoxFit.contain),
                   ),
                   Positioned(
