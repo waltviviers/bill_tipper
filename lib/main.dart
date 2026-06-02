@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(const BillTipperApp());
 
@@ -15,6 +16,23 @@ class BillTipperApp extends StatefulWidget {
 
 class _BillTipperAppState extends State<BillTipperApp> {
   Color _accent = const Color(0xFF69F0AE);
+
+  @override
+  void initState() {
+    super.initState();
+    _loadAccent();
+  }
+
+  Future<void> _loadAccent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getInt('accent_color');
+    if (value != null) setState(() => _accent = Color(value));
+  }
+
+  Future<void> _saveAccent(Color c) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('accent_color', c.value);
+  }
 
   ThemeData _makeTheme() {
     return ThemeData.dark().copyWith(
@@ -78,7 +96,7 @@ class _BillTipperAppState extends State<BillTipperApp> {
       theme: _makeTheme(),
       home: BillTipperHome(
         accent: _accent,
-        onAccentChanged: (c) => setState(() => _accent = c),
+        onAccentChanged: (c) { setState(() => _accent = c); _saveAccent(c); },
       ),
     );
   }
