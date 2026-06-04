@@ -32,8 +32,72 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
-      - name: Remove generated build.gradle so build.gradle.kts is used
-        run: rm -f android/app/build.gradle
+      - name: Patch app build.gradle
+        run: |
+          python3 - << 'EOF'
+          content = """\
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+def keystoreFile = System.getenv("KEYSTORE_FILE")
+
+android {
+    namespace "com.example.bill_tipper"
+    compileSdk 35
+    ndkVersion flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
+    defaultConfig {
+        applicationId "com.waltviviers.billtipper"
+        minSdk 21
+        targetSdk 35
+        versionCode flutter.versionCode
+        versionName flutter.versionName
+    }
+
+    signingConfigs {
+        release {
+            if (keystoreFile != null) {
+                storeFile file(keystoreFile)
+                storePassword System.getenv("KEYSTORE_PASSWORD")
+                keyAlias System.getenv("KEY_ALIAS")
+                keyPassword System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            signingConfig keystoreFile != null ? signingConfigs.release : signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+        }
+        debug {
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+}
+
+flutter {
+    source '../..'
+}
+"""
+          with open('android/app/build.gradle', 'w') as f:
+              f.write(content)
+          print('Patched android/app/build.gradle')
+          EOF
 
       - name: Set app display name
         run: |
@@ -58,7 +122,7 @@ jobs:
         run: flutter analyze || true
 
       - name: Build debug APK
-        run: flutter build apk --debug --no-shrink
+        run: flutter build apk --debug
 
       - name: Build release AAB
         env:
