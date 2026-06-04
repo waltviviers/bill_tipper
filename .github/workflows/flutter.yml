@@ -32,6 +32,9 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
+      - name: Remove generated build.gradle so build.gradle.kts is used
+        run: rm -f android/app/build.gradle
+
       - name: Set app display name
         run: |
           echo '<resources><string name="app_name">Bill Tipper</string></resources>' \
