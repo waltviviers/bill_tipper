@@ -32,6 +32,9 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
+      - name: Remove generated Groovy build file
+        run: rm -f android/app/build.gradle
+
       - name: Set app display name
         run: |
           echo '<resources><string name="app_name">Bill Tipper</string></resources>' \
