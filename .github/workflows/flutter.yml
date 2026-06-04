@@ -46,15 +46,35 @@ jobs:
             "platforms;android-35" "build-tools;35.0.0"
           yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses
 
+      - name: Decode keystore
+        continue-on-error: true
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+
       - name: Analyze (non-blocking)
         run: flutter analyze || true
 
       - name: Build debug APK
         run: flutter build apk --debug --no-shrink
 
-      - name: Upload APK
+      - name: Build release AAB
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build appbundle --release
+
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: BillTipper-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
