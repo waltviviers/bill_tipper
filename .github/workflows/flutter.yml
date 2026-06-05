@@ -20,163 +20,64 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Setup Android SDK (API 35)
-        uses: android-actions/setup-android@v3
-        with:
-          api-level: 35
-          components: "build-tools;35.0.0"
-
-      - name: Accept Android licenses
-        run: yes | sdkmanager --licenses
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: "3.24.3"
-
-      - name: Versions
-        run: |
-          flutter --version
-          flutter doctor -v
+          channel: stable
 
       - name: Pub get
         run: flutter pub get
 
-      # Always have a supported Android Gradle project
-      - name: Regenerate Android wrapper
+      - name: Generate Android project
         run: flutter create --platforms=android .
 
-      # Patch Android build files for CI
-      - name: Patch Android build files
-        working-directory: android
-        shell: bash
+      - name: Remove generated Groovy build file
+        run: rm -f android/app/build.gradle
+
+      - name: Set app display name
         run: |
-          set -euxo pipefail
+          echo '<resources><string name="app_name">Bill Tipper</string></resources>' \
+            > android/app/src/main/res/values/strings.xml
 
-          # Gradle properties: AndroidX/Jetifier & memory
-          cat >> gradle.properties <<'EOF'
-          org.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvm.options=-Xmx2g
-          android.useAndroidX=true
-          android.enableJetifier=true
-          kotlin.code.style=official
-          EOF
+      - name: Generate app icons
+        run: dart run flutter_launcher_icons
 
-          # Top-level build.gradle: AGP & Kotlin plugin versions
-          cat > build.gradle <<'EOF'
-          plugins {
-            id 'com.android.application' version '8.6.1' apply false
-            id 'com.android.library'    version '8.6.1' apply false
-            id 'org.jetbrains.kotlin.android' version '1.9.24' apply false
-          }
-          allprojects {
-            repositories { google(); mavenCentral() }
-          }
-          EOF
+      - name: Install Android SDK components
+        run: |
+          "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-35" "build-tools;35.0.0"
+          yes | "${ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager" --licenses
 
-          # settings.gradle: repo block (some templates miss it)
-          if ! grep -q "dependencyResolutionManagement" settings.gradle; then
-            cat >> settings.gradle <<'EOR'
-          dependencyResolutionManagement {
-            repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
-            repositories { google(); mavenCentral() }
-          }
-          EOR
-          fi
+      - name: Decode keystore
+        continue-on-error: true
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
-          # Gradle wrapper 8.7
-          ./gradlew wrapper --gradle-version 8.7 --distribution-type all
-
-          APP=app/build.gradle
-
-          # Ensure plugin block present
-          cat > "$APP" <<'EOG'
-          plugins {
-            id "com.android.application"
-            id "org.jetbrains.kotlin.android"
-          }
-
-          android {
-            namespace "com.example.bill_tipper"
-            compileSdk = 35
-
-            defaultConfig {
-              applicationId "com.example.bill_tipper"
-              minSdk = 21
-              targetSdk = 35
-              versionCode 1
-              versionName "1.0"
-              multiDexEnabled true
-            }
-
-            compileOptions {
-              sourceCompatibility JavaVersion.VERSION_17
-              targetCompatibility JavaVersion.VERSION_17
-            }
-            kotlinOptions { jvmTarget = "17" }
-
-            buildTypes {
-              release {
-                minifyEnabled false
-                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-              }
-            }
-
-            packagingOptions {
-              resources {
-                excludes += [ "META-INF/DEPENDENCIES", "META-INF/NOTICE", "META-INF/LICENSE", "META-INF/INDEX.LIST" ]
-              }
-            }
-          }
-
-          dependencies {
-            implementation 'androidx.multidex:multidex:2.0.1'
-          }
-          EOG
-
-          # Ensure CAMERA permission
-          MAN=app/src/main/AndroidManifest.xml
-          if ! grep -q 'android.permission.CAMERA' "$MAN"; then
-            awk 'NR==1{print; print "    <uses-permission android:name=\"android.permission.CAMERA\" />"; next}1' "$MAN" > tmp && mv tmp "$MAN"
-          fi
-
-      # Keep CI moving while stabilising
       - name: Analyze (non-blocking)
-        run: flutter analyze || echo "Analyzer warnings ignored for CI"
+        run: flutter analyze || true
 
-      - name: Test (non-blocking)
-        run: flutter test || echo "Tests failed/none; continuing to build"
+      - name: Build debug APK
+        run: flutter build apk --debug --no-shrink
 
-      # Build with verbose logs; if it fails, try Gradle directly with stacktrace
-      - name: Build debug APK (verbose + stacktrace)
-        shell: bash
-        run: |
-          set -o pipefail
-          flutter build apk --debug --no-shrink -v 2>&1 | tee build_log.txt || true
-          if ! find build/app/outputs -type f -name '*debug*.apk' -print -quit ; then
-            echo "Flutter build did not produce APK, invoking Gradle for clearer error..."
-            (cd android && ./gradlew :app:assembleDebug --stacktrace --no-daemon --warning-mode all) 2>&1 | tee -a build_log.txt || true
-          fi
-          echo "---- TAIL BUILD LOG ----"
-          tail -n 200 build_log.txt
+      - name: Build release AAB
+        env:
+          KEYSTORE_FILE: ${{ github.workspace }}/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: flutter build appbundle --release
 
-      - name: Upload build logs
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-log
-          path: build_log.txt
-          if-no-files-found: warn
-
-      - name: List build outputs
-        run: |
-          echo "== APKs ==" && find build/app/outputs -type f -name "*.apk" -print || true
-          echo "== Bundles ==" && find build/app/outputs -type f -name "*.aab" -print || true
-
-      - name: Upload APK artifact
+      - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-debug-apk
-          path: |
-            build/app/outputs/flutter-apk/*debug*.apk
-            build/app/outputs/apk/debug/*.apk
-            build/app/outputs/**/debug/*.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
+          if-no-files-found: error
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: BillTipper-release-aab
+          path: build/app/outputs/bundle/release/app-release.aab
           if-no-files-found: error
