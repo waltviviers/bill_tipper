@@ -32,8 +32,12 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
-      - name: Remove generated Groovy build file
-        run: rm -f android/app/build.gradle
+      - name: Restore customised Android files
+        run: |
+          git checkout android/app/build.gradle.kts
+          git checkout android/app/src/main/AndroidManifest.xml
+          mkdir -p android/app/src/main/kotlin/com/waltviviers/billtipper
+          git checkout android/app/src/main/kotlin/com/waltviviers/billtipper/MainActivity.kt
 
       - name: Set app display name
         run: |

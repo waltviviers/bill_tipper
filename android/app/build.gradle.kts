@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.bill_tipper"
+    namespace = "com.waltviviers.billtipper"
     compileSdk = 35
     ndkVersion = flutter.ndkVersion
 
@@ -45,6 +45,10 @@ android {
         release {
             val hasKeystore = System.getenv("KEYSTORE_FILE") != null
             signingConfig = if (hasKeystore) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
+            isMinifyEnabled = false
+            isShrinkResources = false
+        }
+        debug {
             isMinifyEnabled = false
             isShrinkResources = false
         }
