@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(const BillTipperApp());
 
@@ -14,41 +15,53 @@ class BillTipperApp extends StatefulWidget {
 }
 
 class _BillTipperAppState extends State<BillTipperApp> {
-  ThemeMode _themeMode = ThemeMode.dark;
   Color _accent = const Color(0xFF69F0AE);
 
-  ThemeData _makeTheme(Brightness b) {
-    final isDark = b == Brightness.dark;
-    final base = isDark ? ThemeData.dark() : ThemeData.light();
-    return base.copyWith(
-      scaffoldBackgroundColor: isDark ? Colors.black : Colors.white,
-      colorScheme: base.colorScheme.copyWith(
+  @override
+  void initState() {
+    super.initState();
+    _loadAccent();
+  }
+
+  Future<void> _loadAccent() async {
+    final prefs = await SharedPreferences.getInstance();
+    final value = prefs.getInt('accent_color');
+    if (value != null) setState(() => _accent = Color(value));
+  }
+
+  Future<void> _saveAccent(Color c) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('accent_color', c.value);
+  }
+
+  ThemeData _makeTheme() {
+    return ThemeData.dark().copyWith(
+      scaffoldBackgroundColor: const Color(0xFF131313),
+      colorScheme: ThemeData.dark().colorScheme.copyWith(
         primary: _accent,
         secondary: _accent,
-        surface: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF0F0F0),
+        surface: const Color(0xFF1A1A1A),
       ),
       sliderTheme: SliderThemeData(
         activeTrackColor: _accent,
-        thumbColor: isDark ? Colors.white : Colors.black,
-        inactiveTrackColor: isDark ? Colors.white24 : Colors.black26,
+        thumbColor: Colors.white,
+        inactiveTrackColor: Colors.white24,
         overlayColor: _accent.withOpacity(0.2),
       ),
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected)
-              ? _accent
-              : (isDark ? Colors.grey[600] : Colors.grey[400]),
+          (s) => s.contains(WidgetState.selected) ? _accent : Colors.grey[600],
         ),
         trackColor: WidgetStateProperty.resolveWith(
           (s) => s.contains(WidgetState.selected)
               ? _accent.withOpacity(0.4)
-              : (isDark ? Colors.white12 : Colors.black12),
+              : Colors.white12,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: isDark ? const Color(0xFF1E1E1E) : const Color(0xFFE8E8E8),
-          foregroundColor: isDark ? Colors.white : Colors.black87,
+          backgroundColor: const Color(0xFF1E1E1E),
+          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
@@ -56,23 +69,22 @@ class _BillTipperAppState extends State<BillTipperApp> {
       inputDecorationTheme: InputDecorationTheme(
         border: const OutlineInputBorder(
             borderRadius: BorderRadius.all(Radius.circular(12))),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: const BorderRadius.all(Radius.circular(12)),
-          borderSide: BorderSide(color: isDark ? Colors.white24 : Colors.black26),
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: Colors.white24),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: const BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide(color: _accent, width: 2),
         ),
         filled: true,
-        fillColor: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFF5F5F5),
-        labelStyle: TextStyle(color: isDark ? Colors.white54 : Colors.black54),
-        prefixStyle: TextStyle(
-            color: isDark ? Colors.white70 : Colors.black87, fontSize: 16),
-        hintStyle: TextStyle(color: isDark ? Colors.white24 : Colors.black26),
+        fillColor: const Color(0xFF1A1A1A),
+        labelStyle: const TextStyle(color: Colors.white54),
+        prefixStyle: const TextStyle(color: Colors.white70, fontSize: 16),
+        hintStyle: const TextStyle(color: Colors.white24),
       ),
-      iconTheme: IconThemeData(color: isDark ? Colors.white70 : Colors.black54),
-      dividerColor: isDark ? Colors.white12 : Colors.black12,
+      iconTheme: const IconThemeData(color: Colors.white70),
+      dividerColor: Colors.white12,
     );
   }
 
@@ -81,30 +93,22 @@ class _BillTipperAppState extends State<BillTipperApp> {
     return MaterialApp(
       title: 'Bill Tipper',
       debugShowCheckedModeBanner: false,
-      themeMode: _themeMode,
-      theme: _makeTheme(Brightness.light),
-      darkTheme: _makeTheme(Brightness.dark),
+      theme: _makeTheme(),
       home: BillTipperHome(
-        themeMode: _themeMode,
         accent: _accent,
-        onThemeModeChanged: (m) => setState(() => _themeMode = m),
-        onAccentChanged: (c) => setState(() => _accent = c),
+        onAccentChanged: (c) { setState(() => _accent = c); _saveAccent(c); },
       ),
     );
   }
 }
 
 class BillTipperHome extends StatefulWidget {
-  final ThemeMode themeMode;
   final Color accent;
-  final ValueChanged<ThemeMode> onThemeModeChanged;
   final ValueChanged<Color> onAccentChanged;
 
   const BillTipperHome({
     super.key,
-    required this.themeMode,
     required this.accent,
-    required this.onThemeModeChanged,
     required this.onAccentChanged,
   });
 
@@ -228,12 +232,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (_) => _SettingsSheet(
-        isDark: widget.themeMode == ThemeMode.dark,
         accent: widget.accent,
-        onThemeToggle: (dark) {
-          widget.onThemeModeChanged(dark ? ThemeMode.dark : ThemeMode.light);
-          Navigator.pop(context);
-        },
         onColorPicked: (c) {
           Navigator.pop(context);
           widget.onAccentChanged(c);
@@ -247,7 +246,6 @@ class _BillTipperHomeState extends State<BillTipperHome> {
     final bill = _parseBill();
     final tipValue = bill * (_tipPercent / 100.0);
     final accent = Theme.of(context).colorScheme.primary;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final onSurface = Theme.of(context).colorScheme.onSurface;
 
     return Scaffold(
@@ -263,7 +261,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                    color: Colors.black,
+                    color: const Color(0xFF131313),
                     child: Image.asset('assets/bt_logo.png', height: 96, fit: BoxFit.contain),
                   ),
                   Positioned(
@@ -273,7 +271,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
                       icon: Icon(
                         Icons.palette_outlined,
                         size: 22,
-                        color: isDark ? Colors.white38 : Colors.black38,
+                        color: Colors.white38,
                       ),
                       onPressed: _showSettings,
                     ),
@@ -469,15 +467,11 @@ class _BillTipperHomeState extends State<BillTipperHome> {
 }
 
 class _SettingsSheet extends StatelessWidget {
-  final bool isDark;
   final Color accent;
-  final ValueChanged<bool> onThemeToggle;
   final ValueChanged<Color> onColorPicked;
 
   const _SettingsSheet({
-    required this.isDark,
     required this.accent,
-    required this.onThemeToggle,
     required this.onColorPicked,
   });
 
@@ -519,27 +513,6 @@ class _SettingsSheet extends StatelessWidget {
           Text('Settings',
               style: TextStyle(
                   fontSize: 18, fontWeight: FontWeight.bold, color: onSurface)),
-          const SizedBox(height: 20),
-          // Theme toggle
-          Row(
-            children: [
-              Icon(Icons.light_mode_outlined,
-                  size: 18, color: onSurface.withOpacity(0.6)),
-              const SizedBox(width: 8),
-              Text('Light',
-                  style:
-                      TextStyle(color: onSurface.withOpacity(0.7), fontSize: 14)),
-              const Spacer(),
-              Switch(value: isDark, onChanged: onThemeToggle),
-              const Spacer(),
-              Text('Dark',
-                  style:
-                      TextStyle(color: onSurface.withOpacity(0.7), fontSize: 14)),
-              const SizedBox(width: 8),
-              Icon(Icons.dark_mode_outlined,
-                  size: 18, color: onSurface.withOpacity(0.6)),
-            ],
-          ),
           const SizedBox(height: 20),
           Text('Accent colour',
               style:

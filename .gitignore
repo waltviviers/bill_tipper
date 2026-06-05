@@ -1,0 +1,7 @@
+*.jks
+*.keystore
+keystore.properties
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies

@@ -32,8 +32,9 @@ jobs:
       - name: Generate Android project
         run: flutter create --platforms=android .
 
-      - name: Remove generated Groovy build file
-        run: rm -f android/app/build.gradle
+      - name: Patch app build.gradle
+        run: |
+          echo 'cGx1Z2lucyB7CiAgICBpZCAiY29tLmFuZHJvaWQuYXBwbGljYXRpb24iCiAgICBpZCAia290bGluLWFuZHJvaWQiCiAgICBpZCAiZGV2LmZsdXR0ZXIuZmx1dHRlci1ncmFkbGUtcGx1Z2luIgp9CgpkZWYga2V5c3RvcmVGaWxlID0gU3lzdGVtLmdldGVudigiS0VZU1RPUkVfRklMRSIpCgphbmRyb2lkIHsKICAgIG5hbWVzcGFjZSAiY29tLmV4YW1wbGUuYmlsbF90aXBwZXIiCiAgICBjb21waWxlU2RrIDM1CiAgICBuZGtWZXJzaW9uIGZsdXR0ZXIubmRrVmVyc2lvbgoKICAgIGNvbXBpbGVPcHRpb25zIHsKICAgICAgICBzb3VyY2VDb21wYXRpYmlsaXR5IEphdmFWZXJzaW9uLlZFUlNJT05fMV84CiAgICAgICAgdGFyZ2V0Q29tcGF0aWJpbGl0eSBKYXZhVmVyc2lvbi5WRVJTSU9OXzFfOAogICAgfQoKICAgIGtvdGxpbk9wdGlvbnMgewogICAgICAgIGp2bVRhcmdldCA9ICcxLjgnCiAgICB9CgogICAgZGVmYXVsdENvbmZpZyB7CiAgICAgICAgYXBwbGljYXRpb25JZCAiY29tLndhbHR2aXZpZXJzLmJpbGx0aXBwZXIiCiAgICAgICAgbWluU2RrIDIxCiAgICAgICAgdGFyZ2V0U2RrIDM1CiAgICAgICAgdmVyc2lvbkNvZGUgZmx1dHRlci52ZXJzaW9uQ29kZQogICAgICAgIHZlcnNpb25OYW1lIGZsdXR0ZXIudmVyc2lvbk5hbWUKICAgIH0KCiAgICBzaWduaW5nQ29uZmlncyB7CiAgICAgICAgcmVsZWFzZSB7CiAgICAgICAgICAgIGlmIChrZXlzdG9yZUZpbGUgIT0gbnVsbCkgewogICAgICAgICAgICAgICAgc3RvcmVGaWxlIGZpbGUoa2V5c3RvcmVGaWxlKQogICAgICAgICAgICAgICAgc3RvcmVQYXNzd29yZCBTeXN0ZW0uZ2V0ZW52KCJLRVlTVE9SRV9QQVNTV09SRCIpCiAgICAgICAgICAgICAgICBrZXlBbGlhcyBTeXN0ZW0uZ2V0ZW52KCJLRVlfQUxJQVMiKQogICAgICAgICAgICAgICAga2V5UGFzc3dvcmQgU3lzdGVtLmdldGVudigiS0VZX1BBU1NXT1JEIikKICAgICAgICAgICAgfQogICAgICAgIH0KICAgIH0KCiAgICBidWlsZFR5cGVzIHsKICAgICAgICByZWxlYXNlIHsKICAgICAgICAgICAgc2lnbmluZ0NvbmZpZyBrZXlzdG9yZUZpbGUgIT0gbnVsbCA/IHNpZ25pbmdDb25maWdzLnJlbGVhc2UgOiBzaWduaW5nQ29uZmlncy5kZWJ1ZwogICAgICAgICAgICBtaW5pZnlFbmFibGVkIGZhbHNlCiAgICAgICAgICAgIHNocmlua1Jlc291cmNlcyBmYWxzZQogICAgICAgIH0KICAgICAgICBkZWJ1ZyB7CiAgICAgICAgICAgIG1pbmlmeUVuYWJsZWQgZmFsc2UKICAgICAgICAgICAgc2hyaW5rUmVzb3VyY2VzIGZhbHNlCiAgICAgICAgfQogICAgfQp9CgpmbHV0dGVyIHsKICAgIHNvdXJjZSAnLi4vLi4nCn0K' | base64 -d > android/app/build.gradle
 
       - name: Set app display name
         run: |
@@ -58,7 +59,7 @@ jobs:
         run: flutter analyze || true
 
       - name: Build debug APK
-        run: flutter build apk --debug --no-shrink
+        run: flutter build apk --debug
 
       - name: Build release AAB
         env:
