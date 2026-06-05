@@ -162,6 +162,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
       if (!mounted) return;
       if (detected != null) {
         _billController.text = detected.toStringAsFixed(2);
+        setState(() {});
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Scanned: ${detected.toStringAsFixed(2)}'),
           backgroundColor: Theme.of(context).colorScheme.surface,
@@ -234,8 +235,8 @@ class _BillTipperHomeState extends State<BillTipperHome> {
           Navigator.pop(context);
         },
         onColorPicked: (c) {
-          widget.onAccentChanged(c);
           Navigator.pop(context);
+          widget.onAccentChanged(c);
         },
       ),
     );
