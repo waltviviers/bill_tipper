@@ -163,7 +163,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
       if (detected != null) {
         _billController.text = detected.toStringAsFixed(2);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Scanned: R${detected.toStringAsFixed(2)}'),
+          content: Text('Scanned: ${detected.toStringAsFixed(2)}'),
           backgroundColor: Theme.of(context).colorScheme.surface,
         ));
       } else {
@@ -368,7 +368,6 @@ class _BillTipperHomeState extends State<BillTipperHome> {
               decoration: const InputDecoration(
                 labelText: 'Bill amount',
                 hintText: '0.00',
-                prefixText: 'R ',
               ),
               onChanged: (_) => setState(() {}),
             ),
@@ -423,7 +422,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
             SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
-                'Round up to nearest R5',
+                'Round up to nearest 5',
                 style: TextStyle(color: onSurface.withOpacity(0.6), fontSize: 13),
               ),
               value: _roundToR5,
@@ -465,7 +464,7 @@ class _BillTipperHomeState extends State<BillTipperHome> {
   }
 
   String _fmt(double v) =>
-      v.isNaN || v.isInfinite ? 'R0.00' : 'R${v.toStringAsFixed(2)}';
+      v.isNaN || v.isInfinite ? '0.00' : v.toStringAsFixed(2);
 }
 
 class _SettingsSheet extends StatelessWidget {
@@ -628,7 +627,7 @@ class _MoneyRow extends StatelessWidget {
                     fontSize: 15, color: onSurface.withOpacity(0.54))),
           ),
           Text(
-            'R${value.toStringAsFixed(2)}',
+            value.toStringAsFixed(2),
             style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
