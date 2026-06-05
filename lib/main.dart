@@ -6,7 +6,10 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() => runApp(const BillTipperApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const BillTipperApp());
+}
 
 class BillTipperApp extends StatefulWidget {
   const BillTipperApp({super.key});
