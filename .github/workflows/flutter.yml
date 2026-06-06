@@ -34,6 +34,7 @@ jobs:
 
       - name: Restore customised Android files
         run: |
+          rm -f android/app/build.gradle
           git checkout android/app/build.gradle.kts
           git checkout android/app/src/main/AndroidManifest.xml
           mkdir -p android/app/src/main/kotlin/com/waltviviers/billtipper
@@ -73,15 +74,17 @@ jobs:
         run: flutter build appbundle --release
 
       - name: Upload debug APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-debug-apk
           path: build/app/outputs/flutter-apk/app-debug.apk
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload release AAB
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: BillTipper-release-aab
           path: build/app/outputs/bundle/release/app-release.aab
-          if-no-files-found: error
+          if-no-files-found: warn
